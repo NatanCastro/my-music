@@ -8,22 +8,25 @@ import { SnowflakeService } from 'src/snowflake/snowflake.service';
 
 @Injectable()
 export class MusicService {
-  constructor(private readonly snowflakeService: SnowflakeService) {}
+  constructor(private readonly snowflakeService: SnowflakeService) { }
   async upload(files: Express.Multer.File[]) {
-    for (const file of files) {
-      await this.saveFileInWorkerThread(file);
-      const metadata = await this.extractMetadata(file);
-      console.log(metadata);
-    }
+    files.forEach(this.handleFile);
+  }
+
+  private async handleFile(file: Express.Multer.File) {
+    const fileId = this.snowflakeService.generate();
+    await this.saveFileInWorkerThread(fileId, file.buffer);
+    const metadata = await this.extractMetadata(file.buffer, file.mimetype);
+    console.log(metadata);
   }
 
   private async saveFileInWorkerThread(
-    file: Express.Multer.File,
+    fileName: string,
+    fileBuffer: Buffer,
   ): Promise<void> {
-    const id = this.snowflakeService.generate();
     const workerData = {
-      fileBuffer: file.buffer,
-      filename: id,
+      fileBuffer: fileBuffer,
+      filename: fileName,
       // TODO: move the path to the folder to a separate location
       uploadDir: path.join(__dirname, '..', '..', 'uploads'),
     };
@@ -49,10 +52,8 @@ export class MusicService {
     });
   }
 
-  private async extractMetadata(file: Express.Multer.File) {
-    const metadata = await parseBuffer(file.buffer, {
-      mimeType: file.mimetype,
-    });
+  private async extractMetadata(fileBuffer: Buffer, fileMimeType: string) {
+    const metadata = await parseBuffer(fileBuffer, fileMimeType);
     return {
       title: metadata.common.title || 'Unknown Title',
       artist: metadata.common.artist || 'Unknown Artist',
