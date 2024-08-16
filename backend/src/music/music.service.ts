@@ -1,16 +1,17 @@
 import { Injectable } from '@nestjs/common';
-import { Worker } from 'worker_threads';
+import { parentPort, Worker } from 'worker_threads';
 import * as path from 'path';
 import { SnowflakeService } from 'src/snowflake/snowflake.service';
 import { MUSIC_FILE_PATH } from 'src/constants';
+import * as fs from 'fs';
 
 // TODO: Handle saving relevant data to a database
 
 @Injectable()
 export class MusicService {
-  constructor(private readonly snowflakeService: SnowflakeService) { }
+  constructor(private snowflakeService: SnowflakeService) {}
   async upload(files: Express.Multer.File[]) {
-    files.forEach(this.handleFile);
+    files.forEach((file) => this.handleFile(file));
   }
 
   private async handleFile(file: Express.Multer.File) {
@@ -30,12 +31,14 @@ export class MusicService {
       uploadDir: MUSIC_FILE_PATH,
     };
 
+    console.table(workerData);
     return new Promise((resolve, reject) => {
-      const worker = new Worker(path.join(__dirname, 'file-save.worker.js'), {
+      const worker = new Worker(path.join(__dirname, 'save-music.worker.js'), {
         workerData,
       });
 
-      worker.on('message', () => {
+      worker.on('message', (message: string) => {
+        console.log(message);
         resolve();
       });
 
@@ -58,8 +61,26 @@ export class MusicService {
       title: metadata.common.title || 'Unknown Title',
       artist: metadata.common.artist || 'Unknown Artist',
       album: metadata.common.album || 'Unknown Album',
-      year: metadata.common.year.toString() || 'Unknown Year',
+      year: metadata.common.year?.toString() || 'Unknown Year',
       duration: metadata.format.duration || 0,
     };
+  }
+
+  saveMusic(data: { uploadDir: string; filename: string; fileBuffer: Buffer }) {
+    // FIX: memory leak
+    try {
+      console.table(data);
+      if (!fs.existsSync(data.uploadDir)) {
+        fs.mkdirSync(data.uploadDir, { recursive: true });
+      }
+
+      const filePath = path.join(data.uploadDir, data.filename);
+      fs.writeFileSync(filePath, data.fileBuffer);
+      fs.createWriteStream(filePath).write(data.fileBuffer);
+
+      parentPort.postMessage('File saved successfully');
+    } catch (error) {
+      parentPort.postMessage('Error saving file: ' + error.message);
+    }
   }
 }

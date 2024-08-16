@@ -1,7 +1,7 @@
 import {
   Controller,
   Post,
-  UploadedFile,
+  UploadedFiles,
   UseInterceptors,
 } from '@nestjs/common';
 import { MusicService } from './music.service';
@@ -13,7 +13,7 @@ export class MusicController {
 
   @Post('upload')
   @UseInterceptors(FilesInterceptor('files'))
-  upload(@UploadedFile() files: Array<Express.Multer.File>) {
+  upload(@UploadedFiles() files: Array<Express.Multer.File>) {
     this.musicService.upload(files);
   }
 }
