@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Worker } from 'worker_threads';
 import * as path from 'path';
-import { parseBuffer } from 'music-metadata';
 import { SnowflakeService } from 'src/snowflake/snowflake.service';
+import { MUSIC_FILE_PATH } from 'src/constants';
 
 // TODO: Handle saving relevant data to a database
 
@@ -14,7 +14,7 @@ export class MusicService {
   }
 
   private async handleFile(file: Express.Multer.File) {
-    const fileId = this.snowflakeService.generate();
+    const fileId = this.snowflakeService.generateId();
     await this.saveFileInWorkerThread(fileId, file.buffer);
     const metadata = await this.extractMetadata(file.buffer, file.mimetype);
     console.log(metadata);
@@ -27,8 +27,7 @@ export class MusicService {
     const workerData = {
       fileBuffer: fileBuffer,
       filename: fileName,
-      // TODO: move the path to the folder to a separate location
-      uploadDir: path.join(__dirname, '..', '..', 'uploads'),
+      uploadDir: MUSIC_FILE_PATH,
     };
 
     return new Promise((resolve, reject) => {
@@ -53,6 +52,7 @@ export class MusicService {
   }
 
   private async extractMetadata(fileBuffer: Buffer, fileMimeType: string) {
+    const { parseBuffer } = await import('music-metadata');
     const metadata = await parseBuffer(fileBuffer, fileMimeType);
     return {
       title: metadata.common.title || 'Unknown Title',

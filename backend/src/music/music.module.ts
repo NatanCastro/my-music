@@ -5,7 +5,7 @@ import { SnowflakeService } from 'src/snowflake/snowflake.service';
 
 @Module({
   controllers: [MusicController],
-  providers: [MusicService],
-  imports: [SnowflakeService],
+  providers: [MusicService, SnowflakeService],
+  imports: [],
 })
-export class MusicModule {}
+export class MusicModule { }
