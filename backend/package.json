@@ -27,7 +27,7 @@
     "music-metadata": "^10.1.0",
     "reflect-metadata": "^0.2.0",
     "rxjs": "^7.8.1",
-    "snowflake-id": "^1.1.0"
+    "snowflakify": "^1.0.5"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

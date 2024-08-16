@@ -1,9 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { SnowflakeId } from 'snowflake-id';
+import SnowFlakify from 'snowflakify';
 
 @Injectable()
-export class SnowflakeService extends SnowflakeId {
+export class SnowflakeService {
+  private service: SnowFlakify;
   constructor() {
-    super();
+    this.service = new SnowFlakify();
+  }
+
+  generateId() {
+    return this.service.nextId();
+  }
+
+  destructure(snowflakeId: string) {
+    return this.service.destructure(snowflakeId);
   }
 }
