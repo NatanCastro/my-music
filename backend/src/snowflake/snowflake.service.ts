@@ -9,7 +9,7 @@ export class SnowflakeService {
   }
 
   generateId() {
-    return this.service.nextId();
+    return this.service.nextId().toString();
   }
 
   destructure(snowflakeId: string) {
