@@ -16,7 +16,9 @@ export class MusicService {
 
   private async handleFile(file: Express.Multer.File) {
     const fileId = this.snowflakeService.generateId();
-    await this.saveFileInWorkerThread(fileId, file.buffer);
+    const fileExt = file.originalname.split('.').pop();
+
+    await this.saveFileInWorkerThread(`${fileId}.${fileExt}`, file.buffer);
     const metadata = await this.extractMetadata(file.buffer, file.mimetype);
     console.log(metadata);
   }
@@ -26,16 +28,16 @@ export class MusicService {
     fileBuffer: Buffer,
   ): Promise<void> {
     const workerData = {
-      fileBuffer: fileBuffer,
       filename: fileName,
       uploadDir: MUSIC_FILE_PATH,
     };
 
-    console.table(workerData);
     return new Promise((resolve, reject) => {
       const worker = new Worker(path.join(__dirname, 'save-music.worker.js'), {
         workerData,
       });
+
+      worker.postMessage({ fileBuffer });
 
       worker.on('message', (message: string) => {
         console.log(message);
@@ -66,21 +68,20 @@ export class MusicService {
     };
   }
 
-  saveMusic(data: { uploadDir: string; filename: string; fileBuffer: Buffer }) {
-    // FIX: memory leak
-    try {
-      console.table(data);
-      if (!fs.existsSync(data.uploadDir)) {
-        fs.mkdirSync(data.uploadDir, { recursive: true });
+  saveMusic(data: { uploadDir: string; filename: string }) {
+    parentPort.once('message', ({ fileBuffer }: { fileBuffer: Buffer }) => {
+      try {
+        if (!fs.existsSync(data.uploadDir)) {
+          fs.mkdirSync(data.uploadDir, { recursive: true });
+        }
+
+        const filePath = path.join(data.uploadDir, data.filename);
+        fs.createWriteStream(filePath).end(fileBuffer);
+
+        parentPort.postMessage(`music ${data.filename}\n saved successfully`);
+      } catch (error) {
+        parentPort.postMessage('Error saving file: ' + error.message);
       }
-
-      const filePath = path.join(data.uploadDir, data.filename);
-      fs.writeFileSync(filePath, data.fileBuffer);
-      fs.createWriteStream(filePath).write(data.fileBuffer);
-
-      parentPort.postMessage('File saved successfully');
-    } catch (error) {
-      parentPort.postMessage('Error saving file: ' + error.message);
-    }
+    });
   }
 }
