@@ -14,6 +14,6 @@ export class MusicController {
   @Post('upload')
   @UseInterceptors(FilesInterceptor('files'))
   upload(@UploadedFiles() files: Array<Express.Multer.File>) {
-    this.musicService.upload(files);
+    return this.musicService.upload(files);
   }
 }

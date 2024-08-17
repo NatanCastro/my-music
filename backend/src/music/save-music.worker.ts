@@ -9,7 +9,7 @@ async function run() {
 
   const data = workerData;
 
-  musicService.saveMusic(data);
+  musicService.saveToDisk(data);
 }
 
 run();

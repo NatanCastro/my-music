@@ -12,6 +12,10 @@ export class MusicService {
   constructor(private snowflakeService: SnowflakeService) {}
   async upload(files: Express.Multer.File[]) {
     files.forEach((file) => this.handleFile(file));
+
+    return {
+      message: 'music files saved successfully',
+    };
   }
 
   private async handleFile(file: Express.Multer.File) {
@@ -68,7 +72,7 @@ export class MusicService {
     };
   }
 
-  saveMusic(data: { uploadDir: string; filename: string }) {
+  saveToDisk(data: { uploadDir: string; filename: string }) {
     parentPort.once('message', ({ fileBuffer }: { fileBuffer: Buffer }) => {
       try {
         if (!fs.existsSync(data.uploadDir)) {
