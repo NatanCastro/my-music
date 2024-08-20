@@ -13,9 +13,11 @@ export type Folder = {
   children: Node[];
 };
 
-export type Node = File | Folder;
+export type Node = (File | Folder) & { directUsed: boolean };
 
 export type Root = {
   path: string;
   children: Node[];
 };
+
+export type ItemList = Map<string, string>;

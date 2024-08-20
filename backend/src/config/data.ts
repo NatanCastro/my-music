@@ -8,11 +8,13 @@ export const folderTree: Root = {
     {
       type: Type.File,
       name: 'db.sqlite3',
+      directUsed: true,
     },
     {
       type: Type.Folder,
       name: 'uploads',
       children: [],
+      directUsed: true,
     },
   ],
 };

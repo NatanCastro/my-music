@@ -1,10 +1,43 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, OnModuleInit } from '@nestjs/common';
 import * as fs from 'node:fs';
 import { join } from 'node:path';
-import { Node, Root, Type } from './types';
+import { ItemList, Node, Root, Type } from './types';
+import { folderTree } from './data';
 
 @Injectable()
-export class ConfigService {
+export class ConfigService implements OnModuleInit {
+  private itemList: ItemList = new Map();
+
+  onModuleInit() {
+    this.createFolderTree(folderTree);
+    this.createItemList(folderTree);
+  }
+
+  getListItem(key: string) {
+    return this.itemList.get(key);
+  }
+
+  createItemList(root: Root) {
+    root.children.forEach((node) => this.createItemListHelper(root.path, node));
+  }
+
+  private createItemListHelper(path: string, node: Node) {
+    const itemPath = join(path, node.name);
+
+    switch (node.type) {
+      case Type.File:
+        if (node.directUsed) this.itemList.set(node.name, itemPath);
+        break;
+
+      case Type.Folder:
+        if (node.directUsed) this.itemList.set(node.name, itemPath);
+        node.children.forEach((node) => {
+          this.createItemListHelper(itemPath, node);
+        });
+        break;
+    }
+  }
+
   createFolderTree(root: Root) {
     if (fs.existsSync(root.path)) {
       this.createFolder(root.path);

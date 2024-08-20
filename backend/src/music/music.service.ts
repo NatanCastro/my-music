@@ -2,14 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { parentPort, Worker } from 'worker_threads';
 import * as path from 'path';
 import { SnowflakeService } from 'src/snowflake/snowflake.service';
-import { MUSIC_FILE_PATH } from 'src/constants';
 import * as fs from 'fs';
+import { ConfigService } from 'src/config/config.service';
 
 // TODO: Handle saving relevant data to a database
 
 @Injectable()
 export class MusicService {
-  constructor(private snowflakeService: SnowflakeService) {}
+  constructor(
+    private snowflakeService: SnowflakeService,
+    private configService: ConfigService,
+  ) {}
   async upload(files: Express.Multer.File[]) {
     files.forEach((file) => this.handleFile(file));
 
@@ -33,7 +36,7 @@ export class MusicService {
   ): Promise<void> {
     const workerData = {
       filename: fileName,
-      uploadDir: MUSIC_FILE_PATH,
+      uploadDir: this.configService.getListItem('upload'),
     };
 
     return new Promise((resolve, reject) => {
