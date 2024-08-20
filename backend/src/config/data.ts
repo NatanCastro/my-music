@@ -13,8 +13,18 @@ export const folderTree: Root = {
     {
       type: Type.Folder,
       name: 'uploads',
-      children: [],
-      directUsed: true,
+      children: [
+        {
+          type: Type.Folder,
+          name: 'music',
+          directUsed: true,
+        },
+        {
+          type: Type.Folder,
+          name: 'music-thumbnail',
+          directUsed: true,
+        },
+      ],
     },
   ],
 };

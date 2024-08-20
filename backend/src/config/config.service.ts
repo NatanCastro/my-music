@@ -30,8 +30,8 @@ export class ConfigService implements OnModuleInit {
         break;
 
       case Type.Folder:
-        if (node.directUsed) this.itemList.set(node.name, itemPath);
-        node.children.forEach((node) => {
+        if (node?.directUsed) this.itemList.set(node.name, itemPath);
+        node.children?.forEach((node) => {
           this.createItemListHelper(itemPath, node);
         });
         break;
@@ -56,7 +56,7 @@ export class ConfigService implements OnModuleInit {
         break;
       case Type.Folder:
         this.createFolder(itemPath);
-        node.children.forEach((node) =>
+        node.children?.forEach((node) =>
           this.createFolderTreeHelper(itemPath, node),
         );
         break;

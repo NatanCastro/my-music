@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
 import { parentPort, Worker } from 'worker_threads';
 import * as path from 'path';
 import { SnowflakeService } from 'src/snowflake/snowflake.service';
@@ -13,6 +13,27 @@ export class MusicService {
     private snowflakeService: SnowflakeService,
     private configService: ConfigService,
   ) {}
+
+  getMusicThumbnail(musicId: string): StreamableFile {
+    const thumbnailFilePath = [
+      path.join(
+        this.configService.getListItem('music-thumbnail'),
+        `${musicId}-thumbnail.png`,
+      ),
+      path.join(
+        this.configService.getListItem('music-thumbnail'),
+        `${musicId}-thumbnail.jpeg`,
+      ),
+    ].filter((path) => fs.existsSync(path));
+
+    if (thumbnailFilePath.length < 1) {
+      throw new NotFoundException('Thumbnail not found');
+    }
+
+    const fileStream = fs.createReadStream(thumbnailFilePath[0]);
+    return new StreamableFile(fileStream);
+  }
+
   async upload(files: Express.Multer.File[]) {
     files.forEach((file) => this.handleFile(file));
 
@@ -25,18 +46,30 @@ export class MusicService {
     const fileId = this.snowflakeService.generateId();
     const fileExt = file.originalname.split('.').pop();
 
-    await this.saveFileInWorkerThread(`${fileId}.${fileExt}`, file.buffer);
-    const metadata = await this.extractMetadata(file.buffer, file.mimetype);
-    console.log(metadata);
+    await this.saveFileInWorkerThread(
+      `${fileId}.${fileExt}`,
+      this.configService.getListItem('music'),
+      file.buffer,
+    );
+    const { cover, ..._ } = await this.extractMetadata(
+      file.buffer,
+      file.mimetype,
+    );
+    await this.saveFileInWorkerThread(
+      `${fileId}-thumbnail.${cover.format.split('/')[1]}`,
+      this.configService.getListItem('music-thumbnail'),
+      Buffer.from(cover.data.buffer),
+    );
   }
 
   private async saveFileInWorkerThread(
     fileName: string,
+    savePath: string,
     fileBuffer: Buffer,
   ): Promise<void> {
     const workerData = {
       filename: fileName,
-      uploadDir: this.configService.getListItem('upload'),
+      uploadDir: savePath,
     };
 
     return new Promise((resolve, reject) => {
@@ -66,12 +99,22 @@ export class MusicService {
   private async extractMetadata(fileBuffer: Buffer, fileMimeType: string) {
     const { parseBuffer } = await import('music-metadata');
     const metadata = await parseBuffer(fileBuffer, fileMimeType);
+
+    let cover: { data: Uint8Array; format: string } | null = null;
+    if (metadata.common.picture && metadata.common.picture.length > 0) {
+      cover = {
+        data: metadata.common.picture[0].data,
+        format: metadata.common.picture[0].format,
+      };
+    }
+
     return {
       title: metadata.common.title || 'Unknown Title',
       artist: metadata.common.artist || 'Unknown Artist',
       album: metadata.common.album || 'Unknown Album',
       year: metadata.common.year?.toString() || 'Unknown Year',
       duration: metadata.format.duration || 0,
+      cover,
     };
   }
 

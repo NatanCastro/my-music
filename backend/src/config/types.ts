@@ -10,10 +10,10 @@ export type File = {
 export type Folder = {
   name: string;
   type: Type.Folder;
-  children: Node[];
+  children?: Node[];
 };
 
-export type Node = (File | Folder) & { directUsed: boolean };
+export type Node = (File | Folder) & { directUsed?: true };
 
 export type Root = {
   path: string;
