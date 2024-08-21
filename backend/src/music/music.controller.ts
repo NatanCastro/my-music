@@ -14,7 +14,7 @@ import { Response as Res } from 'express';
 
 @Controller('music')
 export class MusicController {
-  constructor(private readonly musicService: MusicService) {}
+  constructor(private readonly musicService: MusicService) { }
 
   @Post('upload')
   @UseInterceptors(FilesInterceptor('files'))

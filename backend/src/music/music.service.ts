@@ -1,9 +1,15 @@
-import { Injectable, NotFoundException, StreamableFile } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+  StreamableFile,
+} from '@nestjs/common';
 import { parentPort, Worker } from 'worker_threads';
 import * as path from 'path';
 import { SnowflakeService } from 'src/snowflake/snowflake.service';
 import * as fs from 'fs';
 import { ConfigService } from 'src/config/config.service';
+import { AudioFiles, GroupedAudioFiles } from './types';
 
 // TODO: Handle saving relevant data to a database
 
@@ -12,21 +18,15 @@ export class MusicService {
   constructor(
     private snowflakeService: SnowflakeService,
     private configService: ConfigService,
-  ) {}
+  ) { }
 
   getMusicThumbnail(musicId: string): StreamableFile {
-    const thumbnailFilePath = [
-      path.join(
-        this.configService.getListItem('music-thumbnail'),
-        `${musicId}-thumbnail.png`,
-      ),
-      path.join(
-        this.configService.getListItem('music-thumbnail'),
-        `${musicId}-thumbnail.jpeg`,
-      ),
-    ].filter((path) => fs.existsSync(path));
+    const thumbnailFilePath = path.join(
+      this.configService.getListItem('music-thumbnail'),
+      `${musicId}-thumbnail.jpeg`,
+    );
 
-    if (thumbnailFilePath.length < 1) {
+    if (fs.existsSync(thumbnailFilePath)) {
       throw new NotFoundException('Thumbnail not found');
     }
 
@@ -35,31 +35,83 @@ export class MusicService {
   }
 
   async upload(files: Express.Multer.File[]) {
-    files.forEach((file) => this.handleFile(file));
+    const groupedFiles: GroupedAudioFiles = new Map();
+    let originalFile: Express.Multer.File | null = null;
+    let compressedFile: Express.Multer.File | null = null;
+    files.forEach((file) => {
+      const [name, type, extension] = file.originalname.split('.');
+      console.log(name, type, extension);
+
+      if (!(type === 'original' || type === 'compressed')) {
+        throw new BadRequestException();
+      }
+
+      switch (type) {
+        case 'original':
+          originalFile = file;
+        case 'compressed':
+          compressedFile = file;
+      }
+
+      if (originalFile && compressedFile) {
+        groupedFiles.set(name, {
+          original: originalFile,
+          compressed: compressedFile,
+          extension,
+        });
+
+        originalFile = null;
+        compressedFile = null;
+      }
+    });
+    console.log(groupedFiles);
+
+    groupedFiles.forEach((group) => this.handleFile(group));
 
     return {
       message: 'music files saved successfully',
     };
   }
 
-  private async handleFile(file: Express.Multer.File) {
+  private async handleFile(files: AudioFiles) {
     const fileId = this.snowflakeService.generateId();
-    const fileExt = file.originalname.split('.').pop();
-
-    await this.saveFileInWorkerThread(
-      `${fileId}.${fileExt}`,
+    const compressedFileName = `${fileId}-compressed.${files.extension}`;
+    const compressedFilePath = path.join(
       this.configService.getListItem('music'),
-      file.buffer,
+      'compressed',
     );
-    const { cover, ..._ } = await this.extractMetadata(
-      file.buffer,
-      file.mimetype,
+    const originalFileName = `${fileId}-original.${files.extension}`;
+    const originalFilePath = path.join(
+      this.configService.getListItem('music'),
+      'original',
     );
-    await this.saveFileInWorkerThread(
-      `${fileId}-thumbnail.${cover.format.split('/')[1]}`,
-      this.configService.getListItem('music-thumbnail'),
-      Buffer.from(cover.data.buffer),
+
+    const metadata = await this.extractMetadata(
+      files.original.buffer,
+      files.original.mimetype,
     );
+    const thumbnailFileName = `${fileId}-thumbnail.${metadata.cover.format.split('/')[1]}`;
+    const thumbnailFilePath = this.configService.getListItem('music-thumbnail');
+
+    console.log(thumbnailFileName, thumbnailFilePath);
+
+    Promise.all([
+      this.saveFileInWorkerThread(
+        compressedFileName,
+        compressedFilePath,
+        files.compressed.buffer,
+      ),
+      this.saveFileInWorkerThread(
+        originalFileName,
+        originalFilePath,
+        files.original.buffer,
+      ),
+      this.saveFileInWorkerThread(
+        thumbnailFileName,
+        thumbnailFilePath,
+        Buffer.from(metadata.cover.data),
+      ),
+    ]);
   }
 
   private async saveFileInWorkerThread(

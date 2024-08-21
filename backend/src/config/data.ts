@@ -18,6 +18,16 @@ export const folderTree: Root = {
           type: Type.Folder,
           name: 'music',
           directUsed: true,
+          children: [
+            {
+              type: Type.Folder,
+              name: 'original',
+            },
+            {
+              type: Type.Folder,
+              name: 'compressed',
+            },
+          ],
         },
         {
           type: Type.Folder,
