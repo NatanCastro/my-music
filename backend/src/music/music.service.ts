@@ -23,14 +23,14 @@ export class MusicService {
   getMusicThumbnail(musicId: string): StreamableFile {
     const thumbnailFilePath = path.join(
       this.configService.getListItem('music-thumbnail'),
-      `${musicId}-thumbnail.jpeg`,
+      `${musicId}-thumbnail.png`,
     );
 
-    if (fs.existsSync(thumbnailFilePath)) {
+    if (!fs.existsSync(thumbnailFilePath)) {
       throw new NotFoundException('Thumbnail not found');
     }
 
-    const fileStream = fs.createReadStream(thumbnailFilePath[0]);
+    const fileStream = fs.createReadStream(thumbnailFilePath);
     return new StreamableFile(fileStream);
   }
 
